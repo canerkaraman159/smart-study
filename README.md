@@ -29,7 +29,3 @@ Görev takibi, Pomodoro zamanlayıcısı ve çalışma istatistikleri gibi özel
 </p>
 
 
-
-##  Geliştirici
-
-Caner Karaman
