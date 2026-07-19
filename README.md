@@ -1,16 +1,28 @@
-# study_app
 
-A new Flutter project.
+Smart Study, Flutter ile geliştirdiğim bir çalışma ve verimlilik uygulamasıdır. Uygulamayı tasarlarken kullanıcıyı yormayan, sade ve kolay kullanılabilir bir arayüz oluşturmayı hedefledim.
+Görev takibi, Pomodoro zamanlayıcısı ve çalışma istatistikleri gibi özelliklerle ders çalışma sürecini daha düzenli hale getirmeyi amaçladım.
 
-## Getting Started
+##  Özellikler
 
-This project is a starting point for a Flutter application.
+-  Firebase Authentication
+-  Görev yönetimi
+-  Pomodoro zamanlayıcısı
+-  Günlük ve haftalık istatistikler
+-  Profil düzenleme
+-  Cloud Firestore senkronizasyonu
 
-A few resources to get you started if this is your first Flutter project:
+##  Kullanılan Teknolojiler
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- Flutter
+- Dart
+- Firebase Authentication
+- Cloud Firestore
+- Firebase Core
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+##  Ekran Görüntüleri
+
+(Buraya ekran görüntülerini ekleyeceğiz.)
+
+##  Geliştirici
+
+Caner Karaman
