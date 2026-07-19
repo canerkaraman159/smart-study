@@ -7,7 +7,9 @@ import '../data/pomodoro_settings.dart';
 import '../data/stats_store.dart';
 
 class PomodoroScreen extends StatefulWidget {
-  const PomodoroScreen({super.key});
+  final bool showBackButton;
+
+  const PomodoroScreen({super.key, this.showBackButton = true});
 
   @override
   State<PomodoroScreen> createState() => _PomodoroScreenState();
@@ -160,21 +162,23 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   Widget _header(double w) {
     return Row(
       children: [
-        InkWell(
-          borderRadius: BorderRadius.circular(16),
-          onTap: () => Navigator.pop(context),
-          child: Container(
-            width: w * 0.11,
-            height: w * 0.11,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.78),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white),
+        if (widget.showBackButton) ...[
+          InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: () => Navigator.pop(context),
+            child: Container(
+              width: w * 0.11,
+              height: w * 0.11,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.78),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white),
+              ),
+              child: Icon(Icons.arrow_back_rounded, size: w * 0.062, color: AppColors.textPrimary),
             ),
-            child: Icon(Icons.arrow_back_rounded, size: w * 0.062, color: AppColors.textPrimary),
           ),
-        ),
-        SizedBox(width: w * 0.035),
+          SizedBox(width: w * 0.035),
+        ],
         Expanded(
           child: Text(
             'Pomodoro',

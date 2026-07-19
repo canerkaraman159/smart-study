@@ -1,85 +1,132 @@
-import 'dart:convert';
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../services/firestore_service.dart';
 
 class TaskStore {
-  static const _storageKey = 'saved_tasks';
+  static final ValueNotifier<List<Map<String, dynamic>>> tasks = ValueNotifier<List<Map<String, dynamic>>>([]);
 
-  static final ValueNotifier<List<Map<String, dynamic>>> tasks = ValueNotifier(_defaultTasks());
-
-  static List<Map<String, dynamic>> _defaultTasks() {
-    return [
-      {
-        'title': 'Matematik Çalış',
-        'duration': '30 dk',
-        'iconCode': Icons.calculate_outlined.codePoint,
-        'iconBg': 0xFFD8DFFF,
-        'iconColor': 0xFF7C89E8,
-        'isDone': false,
-      },
-      {
-        'title': 'Fen Bilgisi Tekrar',
-        'duration': '30 dk',
-        'iconCode': Icons.science_outlined.codePoint,
-        'iconBg': 0xFFD7F0D8,
-        'iconColor': 0xFF69C26F,
-        'isDone': false,
-      },
-    ];
-  }
+  static StreamSubscription<User?>? _authSubscription;
+  static StreamSubscription<List<Map<String, dynamic>>>? _tasksSubscription;
 
   static Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
+    await _authSubscription?.cancel();
 
-    try {
-      final raw = prefs.getString(_storageKey);
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      _tasksSubscription?.cancel();
+      _tasksSubscription = null;
 
-      if (raw == null) {
-        tasks.value = _defaultTasks();
+      if (user == null) {
+        tasks.value = [];
         return;
       }
 
-      final decoded = jsonDecode(raw) as List;
-
-      tasks.value = decoded.map((e) {
-        final task = Map<String, dynamic>.from(e);
-
-        return {
-          'title': task['title'] ?? 'Yeni Görev',
-          'duration': task['duration'] ?? '30 dk',
-          'iconCode': task['iconCode'] ?? Icons.book_outlined.codePoint,
-          'iconBg': task['iconBg'] ?? 0xFFE5F4E8,
-          'iconColor': task['iconColor'] ?? 0xFF69C26F,
-          'isDone': task['isDone'] ?? false,
-        };
-      }).toList();
-    } catch (e) {
-      await prefs.remove(_storageKey);
-      tasks.value = _defaultTasks();
-    }
+      _listenToUserTasks();
+    });
   }
 
-  static Future<void> _save() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString(_storageKey, jsonEncode(tasks.value));
+  static void _listenToUserTasks() {
+    _tasksSubscription = FirestoreService.getTasksStream().listen(
+      (firestoreTasks) {
+        tasks.value = firestoreTasks.map((task) {
+          return {
+            'id': task['id'],
+            'title': task['title'] ?? 'Yeni Görev',
+            'description': task['description'] ?? '',
+            'duration': task['duration'] ?? '30 dk',
+            'date': task['date'],
+            'category': task['category'] ?? 'general',
+            'iconCode': task['iconCode'] ?? Icons.assignment_rounded.codePoint,
+            'iconBg': task['iconBg'] ?? 0xFFE5F4E8,
+            'iconColor': task['iconColor'] ?? 0xFF69C26F,
+            'isDone': task['isDone'] ?? false,
+            'createdAt': task['createdAt'],
+          };
+        }).toList();
+      },
+      onError: (Object error) {
+        debugPrint('Görevler alınırken hata oluştu: $error');
+      },
+    );
   }
 
   static Future<void> addTask(Map<String, dynamic> task) async {
-    tasks.value = [task, ...tasks.value];
+    final newTask = Map<String, dynamic>.from(task);
 
-    await _save();
+    newTask.remove('id');
+
+    await FirestoreService.addTask(newTask);
+  }
+
+  static Future<void> updateTask(int index, Map<String, dynamic> updatedTask) async {
+    if (index < 0 || index >= tasks.value.length) {
+      return;
+    }
+
+    final currentTask = tasks.value[index];
+
+    final taskId = updatedTask['id']?.toString() ?? currentTask['id']?.toString();
+
+    if (taskId == null || taskId.isEmpty) {
+      return;
+    }
+
+    final taskData = Map<String, dynamic>.from(updatedTask);
+
+    taskData['id'] = taskId;
+
+    await FirestoreService.updateTask(taskId, taskData);
+  }
+
+  static Future<void> deleteTask(int index) async {
+    if (index < 0 || index >= tasks.value.length) {
+      return;
+    }
+
+    final taskId = tasks.value[index]['id']?.toString();
+
+    if (taskId == null || taskId.isEmpty) {
+      return;
+    }
+
+    await FirestoreService.deleteTask(taskId);
   }
 
   static Future<void> updateTasks(List<Map<String, dynamic>> updated) async {
-    tasks.value = [...updated];
+    final oldTasks = [...tasks.value];
 
-    await _save();
+    final updatedIds = updated.map((task) => task['id']?.toString()).whereType<String>().where((id) => id.isNotEmpty).toSet();
+
+    for (final oldTask in oldTasks) {
+      final oldId = oldTask['id']?.toString();
+
+      if (oldId != null && oldId.isNotEmpty && !updatedIds.contains(oldId)) {
+        await FirestoreService.deleteTask(oldId);
+      }
+    }
+
+    for (final task in updated) {
+      final taskId = task['id']?.toString();
+
+      if (taskId == null || taskId.isEmpty) {
+        await FirestoreService.addTask(task);
+      } else {
+        await FirestoreService.updateTask(taskId, task);
+      }
+    }
   }
 
   static Future<void> deleteCompletedTasks() async {
-    tasks.value = tasks.value.where((t) => t['isDone'] != true).toList();
+    await FirestoreService.deleteCompletedTasks();
+  }
 
-    await _save();
+  static Future<void> dispose() async {
+    await _tasksSubscription?.cancel();
+    await _authSubscription?.cancel();
+
+    _tasksSubscription = null;
+    _authSubscription = null;
   }
 }

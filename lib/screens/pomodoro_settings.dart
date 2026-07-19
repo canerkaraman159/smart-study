@@ -27,7 +27,7 @@ class _PomodoroSettingsScreenState extends State<PomodoroSettingsScreen> {
       backgroundColor: AppColors.background,
 
       bottomNavigationBar: SafeArea(
-        minimum: const EdgeInsets.fromLTRB(24, 8, 24, 18),
+        minimum: const EdgeInsets.fromLTRB(24, 8, 24, 80),
         child: SizedBox(
           height: 58,
           child: ElevatedButton(
@@ -70,7 +70,7 @@ class _PomodoroSettingsScreenState extends State<PomodoroSettingsScreen> {
                     child: Center(
                       child: Text(
                         "Pomodoro Ayarları",
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.black),
+                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -0.4),
                       ),
                     ),
                   ),

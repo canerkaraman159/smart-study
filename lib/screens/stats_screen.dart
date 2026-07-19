@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:study_app/data/goal_store.dart';
 import '../core/theme/app_colors.dart';
 import '../data/stats_store.dart';
 import '../data/task_store.dart';
-import '../data/goal_store.dart';
 
 class StatsScreen extends StatefulWidget {
-  const StatsScreen({super.key});
+  final bool showBackButton;
+
+  const StatsScreen({super.key, this.showBackButton = true});
 
   @override
   State<StatsScreen> createState() => _StatsScreenState();
@@ -42,15 +45,17 @@ class _StatsScreenState extends State<StatsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _header(w),
-              SizedBox(height: w * 0.08),
+              const SizedBox(height: 12),
+
               _topCard(w),
-              SizedBox(height: w * 0.075),
-              _goalProgressCard(w),
-              SizedBox(height: w * 0.075),
+              const SizedBox(height: 14),
+
               _chartCard(w),
-              SizedBox(height: w * 0.075),
+              const SizedBox(height: 14),
+
               _streakCard(w),
-              SizedBox(height: w * 0.075),
+              const SizedBox(height: 14),
+
               _taskFocusCard(w),
             ],
           ),
@@ -62,24 +67,28 @@ class _StatsScreenState extends State<StatsScreen> {
   Widget _header(double w) {
     return Row(
       children: [
-        InkWell(
-          borderRadius: BorderRadius.circular(24),
-          onTap: () => Navigator.pop(context),
-          child: Icon(Icons.arrow_back, size: w * 0.07, color: AppColors.textPrimary),
-        ),
-        SizedBox(width: w * 0.03),
+        if (widget.showBackButton) ...[
+          InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: () => Navigator.pop(context),
+            child: Icon(Icons.arrow_back, size: w * 0.07, color: AppColors.textPrimary),
+          ),
+          SizedBox(width: w * 0.03),
+        ],
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               "İstatistikler",
-              style: TextStyle(fontSize: w * 0.055, fontWeight: FontWeight.w700, color: AppColors.textPrimary, height: 1),
+              style: GoogleFonts.inter(
+                fontSize: w * 0.062,
+                fontWeight: FontWeight.w900,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.8,
+                height: 1,
+              ),
             ),
             SizedBox(height: w * 0.01),
-            Text(
-              "Odak performansın",
-              style: TextStyle(fontSize: w * 0.034, color: AppColors.textSecondary, fontWeight: FontWeight.w400, height: 1),
-            ),
           ],
         ),
       ],
@@ -101,7 +110,12 @@ class _StatsScreenState extends State<StatsScreen> {
                 return Container(
                   width: double.infinity,
                   padding: EdgeInsets.fromLTRB(w * 0.04, w * 0.055, w * 0.04, w * 0.05),
-                  decoration: BoxDecoration(color: const Color(0xFFAFC9FA), borderRadius: BorderRadius.circular(w * 0.045)),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(color: const Color(0xFFE7EAF2)),
+                    boxShadow: [BoxShadow(color: const Color(0xFF5B8DEF).withOpacity(0.14), blurRadius: 20, offset: const Offset(0, 8))],
+                  ),
                   child: Column(
                     children: [
                       Row(
@@ -111,7 +125,13 @@ class _StatsScreenState extends State<StatsScreen> {
                           SizedBox(width: w * 0.02),
                           Text(
                             _formatMinutes(totalMinutes),
-                            style: TextStyle(fontSize: w * 0.06, fontWeight: FontWeight.w500, color: Colors.black, height: 1),
+                            style: GoogleFonts.inter(
+                              fontSize: w * 0.06,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textPrimary,
+                              letterSpacing: -0.5,
+                              height: 1,
+                            ),
                           ),
                         ],
                       ),
@@ -219,7 +239,7 @@ class _StatsScreenState extends State<StatsScreen> {
             children: [
               Text(
                 selectedRange,
-                style: TextStyle(fontSize: w * 0.048, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                style: GoogleFonts.inter(fontSize: w * 0.048, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -0.45),
               ),
               PopupMenuButton<String>(
                 onSelected: (value) {
@@ -236,7 +256,7 @@ class _StatsScreenState extends State<StatsScreen> {
                     children: [
                       Text(
                         selectedRange,
-                        style: TextStyle(fontSize: w * 0.033, color: AppColors.textPrimary, fontWeight: FontWeight.w500),
+                        style: GoogleFonts.inter(fontSize: w * 0.033, color: AppColors.textPrimary, fontWeight: FontWeight.w700),
                       ),
                       SizedBox(width: w * 0.008),
                       Icon(Icons.keyboard_arrow_down, size: w * 0.045, color: AppColors.textPrimary),
@@ -246,7 +266,7 @@ class _StatsScreenState extends State<StatsScreen> {
               ),
             ],
           ),
-          SizedBox(height: w * 0.06),
+          SizedBox(height: w * 0.05),
           ValueListenableBuilder<int>(
             valueListenable: StatsStore.chartVersion,
             builder: (context, _, __) {
@@ -265,7 +285,7 @@ class _StatsScreenState extends State<StatsScreen> {
                   child: Center(
                     child: Text(
                       "Henüz veri yok",
-                      style: TextStyle(fontSize: w * 0.035, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                      style: GoogleFonts.inter(fontSize: w * 0.035, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
                     ),
                   ),
                 );
@@ -296,7 +316,7 @@ class _StatsScreenState extends State<StatsScreen> {
                               padding: EdgeInsets.only(right: w * 0.01),
                               child: Text(
                                 "${value.toStringAsFixed(value < 1 ? 1 : 0)} sa",
-                                style: TextStyle(fontSize: w * 0.026, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                                style: GoogleFonts.inter(fontSize: w * 0.026, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                               ),
                             );
                           },
@@ -317,7 +337,7 @@ class _StatsScreenState extends State<StatsScreen> {
                               padding: EdgeInsets.only(top: w * 0.015),
                               child: Text(
                                 labels[index],
-                                style: TextStyle(fontSize: w * 0.033, fontWeight: FontWeight.w500, color: AppColors.textPrimary),
+                                style: GoogleFonts.inter(fontSize: w * 0.033, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                               ),
                             );
                           },
@@ -360,12 +380,18 @@ class _StatsScreenState extends State<StatsScreen> {
                       children: [
                         Text(
                           "$streak gün üst üste odaklandın",
-                          style: TextStyle(fontSize: w * 0.043, fontWeight: FontWeight.w500, color: AppColors.textPrimary, height: 1.1),
+                          style: GoogleFonts.inter(
+                            fontSize: w * 0.043,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.textPrimary,
+                            letterSpacing: -0.35,
+                            height: 1.1,
+                          ),
                         ),
                         SizedBox(height: w * 0.012),
                         Text(
                           streak == 0 ? "Günlük hedefi tamamlayınca seri başlar" : "Rekorun: $bestStreak gün",
-                          style: TextStyle(fontSize: w * 0.03, color: AppColors.textSecondary, fontWeight: FontWeight.w400, height: 1),
+                          style: GoogleFonts.inter(fontSize: w * 0.03, color: AppColors.textSecondary, fontWeight: FontWeight.w500, height: 1.15),
                         ),
                       ],
                     ),
@@ -380,76 +406,93 @@ class _StatsScreenState extends State<StatsScreen> {
   }
 
   Widget _taskFocusCard(double w) {
-    return ValueListenableBuilder<List<Map<String, dynamic>>>(
-      valueListenable: TaskStore.tasks,
-      builder: (context, tasks, _) {
-        final sortedTasks = [...tasks];
+    return ValueListenableBuilder<int>(
+      valueListenable: StatsStore.chartVersion,
+      builder: (context, _, __) {
+        return ValueListenableBuilder<List<Map<String, dynamic>>>(
+          valueListenable: TaskStore.tasks,
+          builder: (context, tasks, ___) {
+            final sortedTasks = [...tasks];
 
-        sortedTasks.sort((a, b) {
-          final aMin = _durationToMinutes(a['duration'] ?? '30 dk');
-          final bMin = _durationToMinutes(b['duration'] ?? '30 dk');
-          return bMin.compareTo(aMin);
-        });
+            sortedTasks.sort((a, b) {
+              final aMinutes = StatsStore.taskMinutes[a['title']] ?? 0;
+              final bMinutes = StatsStore.taskMinutes[b['title']] ?? 0;
 
-        final visibleTasks = sortedTasks.take(4).toList();
+              return bMinutes.compareTo(aMinutes);
+            });
 
-        final maxDuration = visibleTasks.isEmpty
-            ? 1
-            : visibleTasks.map((task) => StatsStore.taskMinutes[task['title']] ?? 0).reduce((a, b) => a > b ? a : b);
+            final visibleTasks = sortedTasks.take(4).toList();
 
-        return Container(
-          width: double.infinity,
-          padding: EdgeInsets.fromLTRB(w * 0.045, w * 0.055, w * 0.045, w * 0.06),
-          decoration: _cardDecoration(w),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+            final maxDuration = visibleTasks.isEmpty
+                ? 1
+                : visibleTasks.map((task) => StatsStore.taskMinutes[task['title']] ?? 0).reduce((a, b) => a > b ? a : b);
+
+            return Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(w * 0.045, w * 0.055, w * 0.045, w * 0.06),
+              decoration: _cardDecoration(w),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("🏅", style: TextStyle(fontSize: w * 0.052)),
-                  SizedBox(width: w * 0.025),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Görev Bazlı Odak Süresi",
-                          style: TextStyle(fontSize: w * 0.041, fontWeight: FontWeight.w600, color: AppColors.textPrimary, height: 1),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("🏅", style: TextStyle(fontSize: w * 0.052)),
+                      SizedBox(width: w * 0.025),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Görev Bazlı Odak Süresi",
+                              style: GoogleFonts.inter(
+                                fontSize: w * 0.041,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textPrimary,
+                                letterSpacing: -0.4,
+                                height: 1,
+                              ),
+                            ),
+                            SizedBox(height: w * 0.012),
+                            Text(
+                              "En çok odaklandığın görevler",
+                              style: GoogleFonts.inter(
+                                fontSize: w * 0.029,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                                height: 1.15,
+                              ),
+                            ),
+                          ],
                         ),
-                        SizedBox(height: w * 0.012),
-                        Text(
-                          "Bu hafta en çok odaklandığın görevler",
-                          style: TextStyle(fontSize: w * 0.029, color: AppColors.textSecondary, fontWeight: FontWeight.w400, height: 1),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                  SizedBox(height: w * 0.045),
+                  Container(height: 1, color: const Color(0xFFEDEDED)),
+                  SizedBox(height: w * 0.045),
+                  if (visibleTasks.isEmpty)
+                    Text(
+                      "Henüz görev yok.",
+                      style: GoogleFonts.inter(fontSize: w * 0.035, color: AppColors.textSecondary, fontWeight: FontWeight.w600),
+                    )
+                  else
+                    for (int i = 0; i < visibleTasks.length; i++) ...[
+                      _taskFocusRow(
+                        w,
+                        icon: IconData(visibleTasks[i]['iconCode'] ?? Icons.book_outlined.codePoint, fontFamily: 'MaterialIcons'),
+                        title: visibleTasks[i]['title'] ?? 'Yeni Görev',
+                        duration: '${StatsStore.taskMinutes[visibleTasks[i]['title']] ?? 0} dk',
+                        progress: maxDuration == 0 ? 0 : (StatsStore.taskMinutes[visibleTasks[i]['title']] ?? 0) / maxDuration,
+                        iconBg: Color(visibleTasks[i]['iconBg'] ?? 0xFFE5F4E8),
+                        iconColor: Color(visibleTasks[i]['iconColor'] ?? 0xFF69C26F),
+                      ),
+                      if (i != visibleTasks.length - 1) SizedBox(height: w * 0.055),
+                    ],
                 ],
               ),
-              SizedBox(height: w * 0.045),
-              Container(height: 1, color: const Color(0xFFEDEDED)),
-              SizedBox(height: w * 0.045),
-              if (visibleTasks.isEmpty)
-                Text(
-                  "Henüz görev yok.",
-                  style: TextStyle(fontSize: w * 0.035, color: AppColors.textSecondary),
-                )
-              else
-                for (int i = 0; i < visibleTasks.length; i++) ...[
-                  _taskFocusRow(
-                    w,
-                    icon: IconData(visibleTasks[i]['iconCode'] ?? Icons.book_outlined.codePoint, fontFamily: 'MaterialIcons'),
-                    title: visibleTasks[i]['title'] ?? 'Yeni Görev',
-                    duration: '${StatsStore.taskMinutes[visibleTasks[i]['title']] ?? 0} dk',
-                    progress: (StatsStore.taskMinutes[visibleTasks[i]['title']] ?? 0) / maxDuration,
-                    iconBg: Color(visibleTasks[i]['iconBg'] ?? 0xFFE5F4E8),
-                    iconColor: Color(visibleTasks[i]['iconColor'] ?? 0xFF69C26F),
-                  ),
-                  if (i != visibleTasks.length - 1) SizedBox(height: w * 0.055),
-                ],
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -458,9 +501,9 @@ class _StatsScreenState extends State<StatsScreen> {
   BoxDecoration _cardDecoration(double w) {
     return BoxDecoration(
       color: cardColor,
-      borderRadius: BorderRadius.circular(w * 0.045),
+      borderRadius: BorderRadius.circular(24),
       border: Border.all(color: borderColor, width: 1),
-      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, 4))],
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 5))],
     );
   }
 
@@ -478,12 +521,18 @@ class _StatsScreenState extends State<StatsScreen> {
           children: [
             Text(
               title,
-              style: TextStyle(fontSize: w * 0.037, fontWeight: FontWeight.w500, color: AppColors.textPrimary, height: 1),
+              style: GoogleFonts.inter(
+                fontSize: w * 0.037,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.2,
+                height: 1,
+              ),
             ),
             SizedBox(height: w * 0.01),
             Text(
               subtitle,
-              style: TextStyle(fontSize: w * 0.026, color: AppColors.textSecondary, fontWeight: FontWeight.w400, height: 1),
+              style: GoogleFonts.inter(fontSize: w * 0.026, color: AppColors.textSecondary, fontWeight: FontWeight.w500, height: 1.1),
             ),
           ],
         ),
@@ -530,12 +579,18 @@ class _StatsScreenState extends State<StatsScreen> {
             Expanded(
               child: Text(
                 title,
-                style: TextStyle(fontSize: w * 0.034, fontWeight: FontWeight.w500, color: AppColors.textPrimary, height: 1),
+                style: GoogleFonts.inter(
+                  fontSize: w * 0.034,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                  letterSpacing: -0.2,
+                  height: 1,
+                ),
               ),
             ),
             Text(
               duration,
-              style: TextStyle(fontSize: w * 0.029, color: AppColors.textSecondary, fontWeight: FontWeight.w500, height: 1),
+              style: GoogleFonts.inter(fontSize: w * 0.029, color: AppColors.textSecondary, fontWeight: FontWeight.w700, height: 1),
             ),
           ],
         ),

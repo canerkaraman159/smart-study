@@ -1,21 +1,25 @@
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'package:flutter/material.dart';
+import 'data/goal_store.dart';
 import 'data/pomodoro_settings.dart';
+import 'data/stats_store.dart';
 import 'data/task_store.dart';
-import 'screens/splash_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
 import 'screens/add_task_screen.dart';
+import 'screens/home_screen.dart';
+import 'screens/login_screen.dart';
+import 'screens/main_navigation_screen.dart';
 import 'screens/pomodoro_screen.dart';
 import 'screens/pomodoro_settings.dart';
 import 'screens/profile_screen.dart';
 import 'screens/report_issue_page.dart';
+import 'screens/splash_screen.dart';
 import 'screens/stats_screen.dart';
 import 'screens/task_detail_screen.dart';
-import 'data/goal_store.dart';
-import 'data/stats_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await TaskStore.init();
   await PomodoroSettings.init();
@@ -37,7 +41,9 @@ class SmartStudyApp extends StatelessWidget {
       routes: {
         AppRoutes.splash: (context) => const SplashScreen(),
         AppRoutes.login: (context) => const LoginScreen(),
-        AppRoutes.home: (context) => const HomeScreen(),
+
+        AppRoutes.home: (context) => const MainNavigationScreen(),
+
         AppRoutes.addTask: (context) => const AddTaskScreen(),
         AppRoutes.pomodoro: (context) => const PomodoroScreen(),
         AppRoutes.pomodoroSettings: (context) => const PomodoroSettingsScreen(),

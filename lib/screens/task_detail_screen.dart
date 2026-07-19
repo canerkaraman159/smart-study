@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
-import 'package:study_app/data/stats_store.dart';
+
 import '../core/theme/app_colors.dart';
-import '../main.dart';
 import '../data/stats_store.dart';
 
 class TaskDetailScreen extends StatefulWidget {
@@ -14,28 +14,52 @@ class TaskDetailScreen extends StatefulWidget {
 }
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
-  static const Color cardColor = Color(0xFFFFFFFF);
-  static const Color borderColor = Color(0xFFE7E7E7);
-  static const Color noteBoxColor = Color(0xFFE7F3FF);
-
   Timer? _timer;
+
+  bool _isInitialized = false;
   bool isRunning = false;
+  bool isCompleted = false;
 
   late int totalSeconds;
   late int remainingSeconds;
 
-  String title = 'Matematik Çalış';
+  String title = 'Görev';
+  String description = '';
   String duration = '30 dk';
+  String category = 'Genel';
+
+  Color subjectColor = AppColors.primary;
+  IconData subjectIcon = Icons.assignment_rounded;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    final task = ModalRoute.of(context)?.settings.arguments as Map?;
-    title = task?['title'] ?? 'Matematik Çalış';
-    duration = task?['duration'] ?? '30 dk';
+    if (_isInitialized) return;
+    _isInitialized = true;
 
-    final minutes = int.tryParse(duration.split(' ')[0]) ?? 30;
+    final arguments = ModalRoute.of(context)?.settings.arguments;
+
+    if (arguments is Map) {
+      title = arguments['title']?.toString() ?? 'Görev';
+      description = arguments['description']?.toString() ?? '';
+      duration = arguments['duration']?.toString() ?? '30 dk';
+      category = _categoryTitle(arguments['category']?.toString() ?? 'general');
+
+      final rawColor = arguments['subjectColor'];
+      if (rawColor is Color) {
+        subjectColor = rawColor;
+      } else if (rawColor is int) {
+        subjectColor = Color(rawColor);
+      }
+
+      final rawIconCode = arguments['iconCode'];
+      if (rawIconCode is int) {
+        subjectIcon = IconData(rawIconCode, fontFamily: 'MaterialIcons');
+      }
+    }
+
+    final minutes = int.tryParse(RegExp(r'\d+').firstMatch(duration)?.group(0) ?? '') ?? 30;
 
     totalSeconds = minutes * 60;
     remainingSeconds = totalSeconds;
@@ -47,34 +71,58 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     super.dispose();
   }
 
+  String _categoryTitle(String value) {
+    switch (value) {
+      case 'math':
+        return 'Matematik';
+      case 'science':
+        return 'Fen';
+      case 'language':
+        return 'Dil';
+      case 'software':
+        return 'Yazılım';
+      case 'reading':
+        return 'Okuma';
+      default:
+        return 'Genel';
+    }
+  }
+
   void _startTimer() {
-    if (isRunning) return;
+    if (isRunning || isCompleted) return;
 
     setState(() {
       isRunning = true;
     });
 
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
       if (remainingSeconds > 0) {
         setState(() {
           remainingSeconds--;
         });
-      } else {
-        timer.cancel();
-
-        final studiedMinutes = (totalSeconds / 60).round();
-
-        StatsStore.addTaskStudyMinutes(title, studiedMinutes);
-
-        setState(() {
-          isRunning = false;
-        });
+        return;
       }
+
+      timer.cancel();
+
+      final studiedMinutes = (totalSeconds / 60).round();
+      StatsStore.addTaskStudyMinutes(title, studiedMinutes);
+
+      setState(() {
+        isRunning = false;
+        isCompleted = true;
+      });
     });
   }
 
   void _pauseTimer() {
     _timer?.cancel();
+
     setState(() {
       isRunning = false;
     });
@@ -82,8 +130,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   void _resetTimer() {
     _timer?.cancel();
+
     setState(() {
       isRunning = false;
+      isCompleted = false;
       remainingSeconds = totalSeconds;
     });
   }
@@ -93,21 +143,25 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     final minutes = (seconds % 3600) ~/ 60;
     final secs = seconds % 60;
 
+    if (hours == 0) {
+      return '${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+    }
+
     return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
   }
 
   double get progress {
     if (totalSeconds == 0) return 0;
-    return remainingSeconds / totalSeconds;
+    return 1 - (remainingSeconds / totalSeconds);
   }
 
   String get remainingText {
+    if (isCompleted || remainingSeconds == 0) {
+      return 'Görev tamamlandı';
+    }
+
     final minutes = remainingSeconds ~/ 60;
     final seconds = remainingSeconds % 60;
-
-    if (minutes == 0 && seconds == 0) {
-      return 'tamamlandı';
-    }
 
     if (minutes == 0) {
       return '$seconds sn kaldı';
@@ -118,226 +172,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.of(context).size.width;
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.symmetric(horizontal: w * 0.06),
+          padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(height: w * 0.045),
-
-              Row(
-                children: [
-                  InkWell(
-                    borderRadius: BorderRadius.circular(24),
-                    onTap: () => Navigator.pop(context),
-                    child: Icon(Icons.arrow_back, size: w * 0.075, color: AppColors.textPrimary),
-                  ),
-                  SizedBox(width: w * 0.035),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(fontSize: w * 0.054, fontWeight: FontWeight.w600, color: AppColors.textPrimary, height: 1),
-                      ),
-                      SizedBox(height: w * 0.012),
-                      Text(
-                        '$duration  Odak Seansı',
-                        style: TextStyle(fontSize: w * 0.032, fontWeight: FontWeight.w400, color: AppColors.textSecondary, height: 1),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              SizedBox(height: w * 0.085),
-
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.fromLTRB(w * 0.065, w * 0.075, w * 0.065, w * 0.055),
-                decoration: _cardDecoration(w),
-                child: Column(
-                  children: [
-                    Text(
-                      _formatTime(remainingSeconds),
-                      style: TextStyle(
-                        fontSize: w * 0.145,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF070720),
-                        letterSpacing: 1.3,
-                        height: 1,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-
-                    SizedBox(height: w * 0.06),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: LinearProgressIndicator(
-                              value: progress.clamp(0.0, 1.0),
-                              minHeight: 6,
-                              backgroundColor: const Color(0xFFE1E1E1),
-                              valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: w * 0.025),
-                        Text(
-                          remainingText,
-                          style: TextStyle(fontSize: w * 0.034, color: AppColors.textPrimary, fontWeight: FontWeight.w600),
-                        ),
-                      ],
-                    ),
-
-                    SizedBox(height: w * 0.055),
-
-                    Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 48,
-                            child: ElevatedButton(
-                              onPressed: isRunning ? _pauseTimer : _startTimer,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                elevation: 5,
-                                shadowColor: Colors.black26,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                              ),
-                              child: Text(
-                                isRunning ? 'Duraklat' : 'Başlat',
-                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
-                              ),
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: w * 0.03),
-                        SizedBox(
-                          width: 54,
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: _resetTimer,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFE9EEFF),
-                              foregroundColor: AppColors.primary,
-                              elevation: 0,
-                              padding: EdgeInsets.zero,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                            ),
-                            child: const Icon(Icons.restart_alt_rounded),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    SizedBox(height: w * 0.04),
-
-                    Container(width: double.infinity, height: 1, color: const Color(0xFFE5E5E5)),
-
-                    SizedBox(height: w * 0.04),
-
-                    Text(
-                      remainingSeconds == 0 ? '✅ Görev süresi tamamlandı' : '⚡ Hedefe odaklan, devam et',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: w * 0.037, letterSpacing: 1.1, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
-              ),
-
-              SizedBox(height: w * 0.08),
-
-              _infoCard(
-                w,
-                title: 'Görev Detayı',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$title görevi üzerinde çalışılacak.',
-                      style: TextStyle(fontSize: w * 0.039, color: AppColors.textSecondary, height: 1.35),
-                    ),
-                    SizedBox(height: w * 0.04),
-                    Row(
-                      children: [
-                        _tagChip(w, icon: Icons.menu_book_outlined, iconColor: AppColors.primary, bgColor: const Color(0xFFE5E9FF), text: title),
-                        SizedBox(width: w * 0.025),
-                        _tagChip(w, icon: Icons.access_time_outlined, iconColor: AppColors.primary, bgColor: const Color(0xFFE5E9FF), text: duration),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              SizedBox(height: w * 0.075),
-
-              _infoCard(
-                w,
-                title: 'Notlar',
-                leadingIcon: Icons.subject_rounded,
-                leadingIconColor: const Color(0xFF69B6FF),
-                leadingBgColor: const Color(0xFFD9ECFF),
-                child: Container(
-                  width: double.infinity,
-                  height: 56,
-                  padding: EdgeInsets.symmetric(horizontal: w * 0.05, vertical: w * 0.04),
-                  decoration: BoxDecoration(color: noteBoxColor, borderRadius: BorderRadius.circular(w * 0.04)),
-                  child: Text(
-                    'Limit sorularını tekrar çöz',
-                    style: TextStyle(fontSize: w * 0.038, color: AppColors.textSecondary, height: 1.25),
-                  ),
-                ),
-              ),
-
-              SizedBox(height: w * 0.075),
-
-              _infoCard(
-                w,
-                title: 'Pomodoro ile çalış',
-                titleIcon: '⏱',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'İstersen bu görevi Pomodoro tekniği ile de çalışabilirsin.',
-                      style: TextStyle(fontSize: w * 0.038, color: AppColors.textSecondary, height: 1.35),
-                    ),
-                    SizedBox(height: w * 0.055),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 58,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, AppRoutes.pomodoro);
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          elevation: 8,
-                          shadowColor: Colors.black26,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        ),
-                        child: Text(
-                          'Pomodoro Başlat',
-                          style: TextStyle(fontSize: w * 0.047, fontWeight: FontWeight.w700, color: Colors.white, height: 1),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              SizedBox(height: w * 0.08),
+              _buildHeader(),
+              const SizedBox(height: 22),
+              _buildTimerCard(),
+              const SizedBox(height: 18),
+              _buildTaskInfoCard(),
+              const SizedBox(height: 18),
+              _buildStatusCard(),
             ],
           ),
         ),
@@ -345,81 +194,259 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  BoxDecoration _cardDecoration(double w) {
-    return BoxDecoration(
-      color: cardColor,
-      borderRadius: BorderRadius.circular(w * 0.06),
-      border: Border.all(color: borderColor, width: 1),
-      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 12, offset: const Offset(0, 4))],
+  Widget _buildHeader() {
+    return Row(
+      children: [
+        InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            width: 43,
+            height: 43,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.82),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white),
+            ),
+            child: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary, size: 24),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Container(
+          width: 43,
+          height: 43,
+          decoration: BoxDecoration(color: subjectColor.withOpacity(0.14), borderRadius: BorderRadius.circular(15)),
+          child: Icon(subjectIcon, color: subjectColor, size: 23),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900, color: AppColors.textPrimary, height: 1.05, letterSpacing: -0.25),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                '$duration • $category',
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _infoCard(
-    double w, {
-    required String title,
-    Widget? child,
-    IconData? leadingIcon,
-    Color? leadingIconColor,
-    Color? leadingBgColor,
-    String? titleIcon,
-  }) {
+  Widget _buildTimerCard() {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: w * 0.04, vertical: w * 0.045),
-      decoration: _cardDecoration(w),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (leadingIcon != null)
-            Row(
-              children: [
-                Container(
-                  width: w * 0.09,
-                  height: w * 0.09,
-                  decoration: BoxDecoration(color: leadingBgColor ?? const Color(0xFFE5E5E5), borderRadius: BorderRadius.circular(w * 0.02)),
-                  child: Icon(leadingIcon, color: leadingIconColor ?? AppColors.textPrimary, size: w * 0.06),
-                ),
-                SizedBox(width: w * 0.03),
-                Text(
-                  title,
-                  style: TextStyle(fontSize: w * 0.046, fontWeight: FontWeight.w600, color: AppColors.textPrimary, height: 1),
-                ),
-              ],
-            )
-          else
-            Row(
-              children: [
-                if (titleIcon != null) ...[Text(titleIcon, style: TextStyle(fontSize: w * 0.05)), SizedBox(width: w * 0.018)],
-                Text(
-                  title,
-                  style: TextStyle(fontSize: w * 0.046, fontWeight: FontWeight.w600, color: AppColors.textPrimary, height: 1),
-                ),
-              ],
-            ),
-
-          SizedBox(height: w * 0.035),
-
-          if (child != null) child,
-        ],
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: const Color(0xFFE7EAF2)),
+        boxShadow: [BoxShadow(color: const Color(0xFF5B8DEF).withOpacity(0.13), blurRadius: 20, offset: const Offset(0, 9))],
       ),
-    );
-  }
-
-  Widget _tagChip(double w, {required IconData icon, required Color iconColor, required Color bgColor, required String text}) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: w * 0.028, vertical: w * 0.018),
-      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(w * 0.03)),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      child: Column(
         children: [
-          Icon(icon, size: w * 0.04, color: iconColor),
-          SizedBox(width: w * 0.012),
           Text(
-            text,
-            style: TextStyle(fontSize: w * 0.03, color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+            _formatTime(remainingSeconds),
+            style: const TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF17172A),
+              height: 1,
+              letterSpacing: 0.5,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: 18),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(99),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              minHeight: 9,
+              backgroundColor: const Color(0xFFE8ECF7),
+              valueColor: AlwaysStoppedAnimation<Color>(subjectColor),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              remainingText,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isCompleted ? const Color(0xFF45B87A) : AppColors.textSecondary),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: isCompleted ? null : (isRunning ? _pauseTimer : _startTimer),
+                    icon: Icon(isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded, size: 22),
+                    label: Text(isRunning ? 'Duraklat' : 'Başlat', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: subjectColor,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: subjectColor.withOpacity(0.45),
+                      disabledForegroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 52,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _resetTimer,
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    elevation: 0,
+                    backgroundColor: subjectColor.withOpacity(0.12),
+                    foregroundColor: subjectColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(17)),
+                  ),
+                  child: const Icon(Icons.restart_alt_rounded, size: 23),
+                ),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTaskInfoCard() {
+    final hasDescription = description.trim().isNotEmpty;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: _cardDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Görev Bilgileri',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 16),
+          _infoRow(icon: subjectIcon, label: 'Görev', value: title, color: subjectColor),
+          const SizedBox(height: 13),
+          _infoRow(icon: Icons.schedule_rounded, label: 'Süre', value: duration, color: AppColors.primary),
+          const SizedBox(height: 13),
+          _infoRow(icon: Icons.category_rounded, label: 'Kategori', value: category, color: const Color(0xFF8B5CF6)),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(color: const Color(0xFFF5F7FC), borderRadius: BorderRadius.circular(17)),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.notes_rounded, size: 19, color: AppColors.textSecondary),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    hasDescription ? description : 'Bu görev için açıklama eklenmemiş.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
+                      color: hasDescription ? AppColors.textPrimary : AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(17),
+      decoration: BoxDecoration(
+        color: isCompleted ? const Color(0xFFE7F8EF) : const Color(0xFFEAF1FF),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: isCompleted ? const Color(0xFFC9EFD9) : const Color(0xFFD7E4FF)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: isCompleted ? const Color(0xFFD1F2DF) : const Color(0xFFDCE8FF),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              isCompleted ? Icons.check_rounded : Icons.insights_rounded,
+              color: isCompleted ? const Color(0xFF45B87A) : AppColors.primary,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              isCompleted ? '$duration görev bazlı odak sürene eklendi.' : 'Sayaç tamamlandığında çalışma süren istatistiklere eklenecek.',
+              style: const TextStyle(fontSize: 13, height: 1.35, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoRow({required IconData icon, required String label, required String value, required Color color}) {
+    return Row(
+      children: [
+        Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(color: color.withOpacity(0.13), borderRadius: BorderRadius.circular(13)),
+          child: Icon(icon, size: 20, color: color),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 66,
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+          ),
+        ),
+      ],
+    );
+  }
+
+  BoxDecoration _cardDecoration() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: const Color(0xFFE7EAF2)),
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 14, offset: const Offset(0, 5))],
     );
   }
 }

@@ -9,9 +9,16 @@ class AddTaskScreen extends StatefulWidget {
 }
 
 class _AddTaskScreenState extends State<AddTaskScreen> {
-  IconData selectedIcon = Icons.menu_book;
-  Color selectedColor = Colors.green;
-  Color selectedBgColor = const Color(0xFFE5F4E8);
+  String selectedCategory = 'general';
+
+  final List<Map<String, dynamic>> categories = const [
+    {'id': 'math', 'title': 'Matematik', 'icon': Icons.calculate_rounded, 'iconColor': Color(0xFF5B8DEF), 'iconBg': Color(0xFFE7EDFF)},
+    {'id': 'science', 'title': 'Fen', 'icon': Icons.science_rounded, 'iconColor': Color(0xFF45B87A), 'iconBg': Color(0xFFE2F8EC)},
+    {'id': 'language', 'title': 'Dil', 'icon': Icons.language_rounded, 'iconColor': Color(0xFF8B5CF6), 'iconBg': Color(0xFFF1E8FF)},
+    {'id': 'software', 'title': 'Yazılım', 'icon': Icons.code_rounded, 'iconColor': Color(0xFFE58A3A), 'iconBg': Color(0xFFFFE9D2)},
+    {'id': 'reading', 'title': 'Okuma', 'icon': Icons.menu_book_rounded, 'iconColor': Color(0xFF9B7B5B), 'iconBg': Color(0xFFF2E8DE)},
+    {'id': 'general', 'title': 'Genel', 'icon': Icons.assignment_rounded, 'iconColor': Color(0xFF6B7280), 'iconBg': Color(0xFFEFF2F7)},
+  ];
 
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _descriptionController = TextEditingController();
@@ -38,17 +45,18 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Lütfen görev başlığı gir.')));
       return;
     }
-    IconData selectedIcon = Icons.menu_book;
-    Color selectedColor = Colors.green;
-    Color selectedBgColor = const Color(0xFFE5F4E8);
+
+    final category = categories.firstWhere((item) => item['id'] == selectedCategory);
+
     Navigator.pop(context, {
       'title': title,
       'description': description,
       'duration': '$selectedDuration dk',
-      'date': _selectedDay,
-      'iconCode': selectedIcon.codePoint,
-      'iconColor': selectedColor.value,
-      'iconBg': selectedBgColor.value,
+      'date': _selectedDay?.toIso8601String(),
+      'category': selectedCategory,
+      'iconCode': (category['icon'] as IconData).codePoint,
+      'iconColor': (category['iconColor'] as Color).value,
+      'iconBg': (category['iconBg'] as Color).value,
     });
   }
 
@@ -178,6 +186,51 @@ class _AddTaskScreenState extends State<AddTaskScreen> {
                         const _FieldLabel('Açıklama'),
                         const SizedBox(height: 8),
                         _buildInputField(controller: _descriptionController, hintText: 'Açıklama giriniz', maxLines: 4),
+
+                        const SizedBox(height: 18),
+
+                        const _FieldLabel('Kategori'),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 9,
+                          runSpacing: 9,
+                          children: categories.map((category) {
+                            final isSelected = selectedCategory == category['id'];
+
+                            return InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () {
+                                setState(() {
+                                  selectedCategory = category['id'] as String;
+                                });
+                              },
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 160),
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? AppColors.primary : category['iconBg'] as Color,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: isSelected ? AppColors.primary : const Color(0xFFE1E4EA)),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(category['icon'] as IconData, size: 19, color: isSelected ? Colors.white : category['iconColor'] as Color),
+                                    const SizedBox(width: 7),
+                                    Text(
+                                      category['title'] as String,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: isSelected ? Colors.white : AppColors.textPrimary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
 
                         const SizedBox(height: 18),
 

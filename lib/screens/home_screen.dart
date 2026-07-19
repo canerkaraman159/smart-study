@@ -7,7 +7,11 @@ import '../data/stats_store.dart';
 import '../data/goal_store.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final bool showDrawer;
+  final VoidCallback? onOpenStats;
+  final VoidCallback? onOpenProfile;
+
+  const HomeScreen({super.key, this.showDrawer = true, this.onOpenStats, this.onOpenProfile});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -16,48 +20,93 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   String currentRoute = AppRoutes.home;
 
-  Future<void> _openAddTask() async {
-    final result = await Navigator.pushNamed(context, AppRoutes.addTask);
+  Future<void> _openAddTask({int? taskIndex, Map<String, dynamic>? task}) async {
+    final result = await Navigator.pushNamed(context, AppRoutes.addTask, arguments: task == null ? null : {'task': task});
 
-    if (result != null && result is Map) {
-      final title = result['title'] ?? 'Yeni Görev';
-      final iconData = _getTaskIconData(title);
+    if (result == null || result is! Map) return;
 
-      TaskStore.addTask({
-        'title': title,
-        'duration': result['duration'] ?? '30 dk',
-        'iconCode': iconData['iconCode'],
-        'iconBg': iconData['iconBg'],
-        'iconColor': iconData['iconColor'],
-        'isDone': false,
-      });
+    final updatedTask = <String, dynamic>{
+      'title': result['title'] ?? 'Yeni Görev',
+      'description': result['description'] ?? '',
+      'duration': result['duration'] ?? '30 dk',
+      'date': result['date'],
+      'category': result['category'] ?? 'general',
+      'iconCode': result['iconCode'] ?? Icons.assignment_rounded.codePoint,
+      'iconBg': result['iconBg'] ?? 0xFFEFF2F7,
+      'iconColor': result['iconColor'] ?? 0xFF6B7280,
+      'isDone': task?['isDone'] == true,
+    };
+
+    if (taskIndex == null) {
+      await TaskStore.addTask(updatedTask);
+    } else {
+      await TaskStore.updateTask(taskIndex, updatedTask);
     }
   }
 
-  Map<String, int> _getTaskIconData(String title) {
-    final lower = title.toLowerCase();
+  Future<void> _showTaskActions({required int index, required Map<String, dynamic> task}) async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return SafeArea(
+          child: Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.edit_rounded, color: AppColors.primary),
+                  title: const Text('Görevi düzenle', style: TextStyle(fontWeight: FontWeight.w700)),
+                  onTap: () => Navigator.pop(context, 'edit'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+                  title: const Text(
+                    'Görevi sil',
+                    style: TextStyle(fontWeight: FontWeight.w700, color: Colors.red),
+                  ),
+                  onTap: () => Navigator.pop(context, 'delete'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
 
-    if (lower.contains('mat') || lower.contains('math')) {
-      return {'iconCode': Icons.calculate_rounded.codePoint, 'iconBg': 0xFFE7EDFF, 'iconColor': 0xFF5B8DEF};
+    if (!mounted) return;
+
+    if (action == 'edit') {
+      await _openAddTask(taskIndex: index, task: task);
+    } else if (action == 'delete') {
+      await _confirmDeleteTask(index);
     }
+  }
 
-    if (lower.contains('ingilizce') || lower.contains('english') || lower.contains('dil')) {
-      return {'iconCode': Icons.language_rounded.codePoint, 'iconBg': 0xFFF1E8FF, 'iconColor': 0xFF8B5CF6};
+  Future<void> _confirmDeleteTask(int index) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Görev silinsin mi?'),
+          content: const Text('Bu görev kalıcı olarak silinecek.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Vazgeç')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Sil', style: TextStyle(color: Colors.red)),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete == true) {
+      await TaskStore.deleteTask(index);
     }
-
-    if (lower.contains('fen') || lower.contains('science') || lower.contains('fizik') || lower.contains('kimya') || lower.contains('biyoloji')) {
-      return {'iconCode': Icons.science_rounded.codePoint, 'iconBg': 0xFFE2F8EC, 'iconColor': 0xFF45B87A};
-    }
-
-    if (lower.contains('tarih') || lower.contains('history')) {
-      return {'iconCode': Icons.history_edu_rounded.codePoint, 'iconBg': 0xFFE2F8EC, 'iconColor': 0xFF45B87A};
-    }
-
-    if (lower.contains('sosyal')) {
-      return {'iconCode': Icons.article_rounded.codePoint, 'iconBg': 0xFFFFE9D2, 'iconColor': 0xFFE58A3A};
-    }
-
-    return {'iconCode': Icons.menu_book_rounded.codePoint, 'iconBg': 0xFFEFF2F7, 'iconColor': 0xFF6B7280};
   }
 
   int _durationToMinutes(String duration) {
@@ -76,8 +125,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (!wasDone) {
         StatsStore.addStudyMinutes(minutes);
+        StatsStore.addTaskStudyMinutes(updatedTasks[index]['title'], minutes);
       } else {
         StatsStore.removeStudyMinutes(minutes);
+        StatsStore.removeTaskStudyMinutes(updatedTasks[index]['title'], minutes);
       }
 
       updatedTasks.sort((a, b) {
@@ -93,7 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      drawer: _buildDrawer(context),
+      drawer: widget.showDrawer ? _buildDrawer(context) : null,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(22, 18, 22, 28),
@@ -117,29 +168,31 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildHeader(BuildContext context) {
     return Row(
       children: [
-        Builder(
-          builder: (context) {
-            return GestureDetector(
-              onTap: () => Scaffold.of(context).openDrawer(),
-              child: Container(
-                width: 43,
-                height: 43,
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.75),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white),
+        if (widget.showDrawer) ...[
+          Builder(
+            builder: (context) {
+              return GestureDetector(
+                onTap: () => Scaffold.of(context).openDrawer(),
+                child: Container(
+                  width: 43,
+                  height: 43,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.75),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white),
+                  ),
+                  child: const Icon(Icons.menu_rounded, size: 25, color: AppColors.textPrimary),
                 ),
-                child: const Icon(Icons.menu_rounded, size: 25, color: AppColors.textPrimary),
-              ),
-            );
-          },
-        ),
-        const SizedBox(width: 12),
+              );
+            },
+          ),
+          const SizedBox(width: 12),
+        ],
         Expanded(
           child: Text('SMART STUDY', style: GoogleFonts.kaiseiOpti(fontSize: 15, letterSpacing: 2.2, color: const Color(0xFF7A7A86))),
         ),
         GestureDetector(
-          onTap: () => Navigator.pushNamed(context, AppRoutes.profile),
+          onTap: widget.onOpenProfile ?? () => Navigator.pushNamed(context, AppRoutes.profile),
           child: Container(
             width: 47,
             height: 47,
@@ -156,67 +209,96 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeroCard() {
-    final today = StatsStore.todayMinutes.value;
-    final goal = GoalStore.dailyGoalMinutes.value;
-    final progress = goal == 0 ? 0.0 : (today / goal).clamp(0.0, 1.0);
+    return ValueListenableBuilder<List<Map<String, dynamic>>>(
+      valueListenable: TaskStore.tasks,
+      builder: (context, tasks, _) {
+        return ValueListenableBuilder<int>(
+          valueListenable: StatsStore.todayMinutes,
+          builder: (context, today, _) {
+            final now = DateTime.now();
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF5B8DEF), Color(0xFF6FA4FF)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: const Color(0xFF5B8DEF).withOpacity(0.32), blurRadius: 24, offset: const Offset(0, 12))],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Hoş geldin 👋',
-            style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, height: 1),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Bugün hedeflerine odaklanalım.',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white.withOpacity(0.82)),
-          ),
-          const SizedBox(height: 24),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: '$today',
-                  style: const TextStyle(fontSize: 46, fontWeight: FontWeight.w900, color: Colors.white, height: 0.95),
-                ),
-                TextSpan(
-                  text: ' / $goal dk',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white.withOpacity(0.85)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 9,
-              backgroundColor: Colors.white.withOpacity(0.18),
+            final todayTasks = tasks.where((task) {
+              final rawDate = task['date'];
 
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
-          ),
-          const SizedBox(height: 10),
+              // Tarihi olmayan eski görevleri bugün kabul ediyoruz.
+              if (rawDate == null) return true;
 
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              "${(progress * 100).toInt()}% tamamlandı",
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white.withOpacity(0.85)),
-            ),
-          ),
-        ],
-      ),
+              DateTime? taskDate;
+
+              if (rawDate is DateTime) {
+                taskDate = rawDate;
+              } else {
+                taskDate = DateTime.tryParse(rawDate.toString());
+              }
+
+              if (taskDate == null) return true;
+
+              return taskDate.year == now.year && taskDate.month == now.month && taskDate.day == now.day;
+            }).toList();
+
+            final goal = todayTasks.fold<int>(0, (total, task) => total + _durationToMinutes(task['duration']?.toString() ?? '30 dk'));
+
+            final progress = goal == 0 ? 0.0 : (today / goal).clamp(0.0, 1.0);
+
+            return Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFF5B8DEF), Color(0xFF6FA4FF)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                borderRadius: BorderRadius.circular(30),
+                boxShadow: [BoxShadow(color: const Color(0xFF5B8DEF).withOpacity(0.32), blurRadius: 24, offset: const Offset(0, 12))],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Hoş geldin 👋',
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white, height: 1),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Bugün hedeflerine odaklanalım.',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white.withOpacity(0.82)),
+                  ),
+                  const SizedBox(height: 24),
+                  RichText(
+                    text: TextSpan(
+                      children: [
+                        TextSpan(
+                          text: '$today',
+                          style: const TextStyle(fontSize: 46, fontWeight: FontWeight.w900, color: Colors.white, height: 0.95),
+                        ),
+                        TextSpan(
+                          text: ' / $goal dk',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white.withOpacity(0.85)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 10,
+                      backgroundColor: Colors.white.withOpacity(0.20),
+                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      '${(progress * 100).toInt()}% tamamlandı',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white.withOpacity(0.90)),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -229,7 +311,7 @@ class _HomeScreenState extends State<HomeScreen> {
             value: '${StatsStore.totalMinutes.value} dk',
             icon: Icons.schedule_rounded,
             color: const Color(0xFF5B8DEF),
-            onTap: () => Navigator.pushNamed(context, AppRoutes.stats),
+            onTap: widget.onOpenStats ?? () => Navigator.pushNamed(context, AppRoutes.stats),
           ),
         ),
         const SizedBox(width: 10),
@@ -239,7 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
         const SizedBox(width: 10),
         Expanded(
           child: _quickCard(
-            title: 'Seri',
+            title: ' Seri',
             value: '${StatsStore.streak.value} gün',
             icon: Icons.local_fire_department_rounded,
             color: const Color(0xFFE58A3A),
@@ -293,7 +375,7 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(17, 18, 17, 17),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
+            borderRadius: BorderRadius.circular(30),
             boxShadow: [BoxShadow(color: const Color(0xFF5B8DEF).withOpacity(0.45), blurRadius: 30, offset: const Offset(0, 14))],
           ),
           child: Column(
@@ -370,57 +452,117 @@ class _HomeScreenState extends State<HomeScreen> {
     required Color iconColor,
     required bool isDone,
   }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap: () {
-        Navigator.pushNamed(context, AppRoutes.taskDetail, arguments: {'title': title, 'duration': duration, 'subjectColor': iconColor});
-      },
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
-        decoration: BoxDecoration(color: const Color(0xFFF7F8FC), borderRadius: BorderRadius.circular(22)),
-        child: Row(
-          children: [
-            _iconBox(icon: icon, bgColor: iconBg, iconColor: iconColor, size: 40),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
-                      color: isDone ? AppColors.textSecondary : AppColors.textPrimary,
-                      decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
-                      decorationThickness: 2,
+    return Dismissible(
+      key: ValueKey('${currentTasks[index]['title']}-${currentTasks[index]['date'] ?? ''}-$index'),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async {
+        return await showDialog<bool>(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  title: const Text('Görev silinsin mi?'),
+                  content: Text('"$title" görevi kalıcı olarak silinecek.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Vazgeç')),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: const Text('Sil', style: TextStyle(color: Colors.red)),
                     ),
-                  ),
-                  const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      const Icon(Icons.timer_outlined, size: 13, color: AppColors.textSecondary),
-                      const SizedBox(width: 4),
-                      Text(
-                        duration,
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            GestureDetector(
-              onTap: () => _toggleTaskDone(currentTasks, index),
-              child: Icon(
-                isDone ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                size: 27,
-                color: isDone ? const Color(0xFF45B87A) : const Color(0xFFC7CDD8),
-              ),
+                  ],
+                );
+              },
+            ) ??
+            false;
+      },
+      onDismissed: (_) async {
+        await TaskStore.deleteTask(index);
+
+        if (!context.mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('"$title" silindi.')));
+      },
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.only(right: 22),
+        decoration: BoxDecoration(color: const Color(0xFFEF4444), borderRadius: BorderRadius.circular(22)),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            Icon(Icons.delete_outline_rounded, color: Colors.white, size: 24),
+            SizedBox(width: 8),
+            Text(
+              'Sil',
+              style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800),
             ),
           ],
+        ),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onLongPress: () => _showTaskActions(index: index, task: currentTasks[index]),
+        onTap: () {
+          final task = currentTasks[index];
+
+          Navigator.pushNamed(
+            context,
+            AppRoutes.taskDetail,
+            arguments: {
+              'title': task['title'],
+              'description': task['description'] ?? '',
+              'duration': task['duration'],
+              'category': task['category'] ?? 'general',
+              'iconCode': task['iconCode'],
+              'subjectColor': task['iconColor'],
+            },
+          );
+        },
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+          decoration: BoxDecoration(color: const Color(0xFFF7F8FC), borderRadius: BorderRadius.circular(22)),
+          child: Row(
+            children: [
+              _iconBox(icon: icon, bgColor: iconBg, iconColor: iconColor, size: 40),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        color: isDone ? AppColors.textSecondary : AppColors.textPrimary,
+                        decoration: isDone ? TextDecoration.lineThrough : TextDecoration.none,
+                        decorationThickness: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        const Icon(Icons.timer_outlined, size: 13, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          duration,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: () => _toggleTaskDone(currentTasks, index),
+                child: Icon(
+                  isDone ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                  size: 27,
+                  color: isDone ? const Color(0xFF45B87A) : const Color(0xFFC7CDD8),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -495,15 +637,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.pushNamed(context, AppRoutes.profile);
-                },
-              ),
-              _drawerItem(
-                title: 'Pomodoro Ayarları',
-                icon: Icons.settings_rounded,
-                route: AppRoutes.pomodoroSettings,
-                onTap: () {
-                  Navigator.pop(context);
-                  Navigator.pushNamed(context, AppRoutes.pomodoroSettings);
                 },
               ),
             ],
